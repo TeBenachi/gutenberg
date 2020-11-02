@@ -11,7 +11,11 @@ import {
 	LINK_DESTINATION_MEDIA,
 	LINK_DESTINATION_NONE,
 } from './constants';
-import { getUpdatedLinkTargetSettings as getLinkTargetSettings } from '../image/utils';
+import {
+	LINK_DESTINATION_ATTACHMENT as IMAGE_LINK_DESTINATION_ATTACHMENT,
+	LINK_DESTINATION_MEDIA as IMAGE_LINK_DESTINATION_MEDIA,
+	LINK_DESTINATION_NONE as IMAGE_LINK_DESTINATION_NONE,
+} from '../image/constants';
 
 /**
  * Determines new href and linkDestination values for an image block from the
@@ -28,18 +32,18 @@ export function getHrefAndDestination( image, destination ) {
 	switch ( destination ) {
 		case LINK_DESTINATION_MEDIA:
 			return {
-				href: image?.source_url, // eslint-disable-line camelcase
-				linkDestination: 'media',
+				href: image?.source_url || image?.url, // eslint-disable-line camelcase
+				linkDestination: IMAGE_LINK_DESTINATION_MEDIA,
 			};
 		case LINK_DESTINATION_ATTACHMENT:
 			return {
 				href: image?.link,
-				linkDestination: 'attachment',
+				linkDestination: IMAGE_LINK_DESTINATION_ATTACHMENT,
 			};
 		case LINK_DESTINATION_NONE:
 			return {
 				href: undefined,
-				linkDestination: LINK_DESTINATION_NONE,
+				linkDestination: IMAGE_LINK_DESTINATION_NONE,
 			};
 	}
 
@@ -61,59 +65,4 @@ export function getImageSizeAttributes( image, size ) {
 	}
 
 	return {};
-}
-
-/**
- * Determine new attribute values for an Image block based on Gallery settings
- * and user's choice to apply for all gallery images or only as a fallback if
- * the image block doesn't have a value set.
- *
- * @param {Object} parentOptions Gallery attributes for linkTo, linkTarget & sizeSlug.
- * @param {Object} attributes    Image block attributes.
- * @param {Object} image         Media object for block's image.
- * @param {boolean} forceUpdate  Whether to force the Image block updates or only as a fallback.
- */
-export function getNewImageAttributes(
-	parentOptions,
-	attributes,
-	image,
-	forceUpdate
-) {
-	if ( forceUpdate ) {
-		return {
-			...getHrefAndDestination( image, parentOptions.linkTo ),
-			...getLinkTargetSettings( parentOptions.linkTarget, attributes ),
-			sizeSlug: parentOptions.sizeSlug,
-		};
-	}
-
-	// Not forcing update so we need to determine which attributes to set.
-	const { linkDestination, linkTarget, sizeSlug } = attributes;
-	let newAttributes = {};
-
-	// Set linkDestination if image's is not set or is 'none'.
-	if ( ! linkDestination || linkDestination === 'none' ) {
-		newAttributes = {
-			...newAttributes,
-			...getHrefAndDestination( image, parentOptions.linkTo ),
-		};
-	}
-
-	// Set linkTarget if parent sets it and image does not.
-	if ( parentOptions.linkTarget && linkTarget !== '_blank' ) {
-		newAttributes = {
-			...newAttributes,
-			...getLinkTargetSettings( parentOptions.linkTarget, attributes ),
-		};
-	}
-
-	// Set image size slug if it isn't set.
-	if ( ! sizeSlug ) {
-		newAttributes = {
-			...newAttributes,
-			...getImageSizeAttributes( image, parentOptions.sizeSlug ),
-		};
-	}
-
-	return newAttributes;
 }

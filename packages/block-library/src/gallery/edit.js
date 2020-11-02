@@ -9,7 +9,6 @@ import { toString, isEqual, isEmpty, find } from 'lodash';
 import { compose } from '@wordpress/compose';
 import {
 	Button,
-	ButtonGroup,
 	PanelBody,
 	SelectControl,
 	ToggleControl,
@@ -28,7 +27,8 @@ import { createBlock } from '@wordpress/blocks';
  */
 import { sharedIcon } from './shared-icon';
 import { defaultColumnsNumber, pickRelevantMediaFiles } from './shared';
-import { getNewImageAttributes } from './utils';
+import { getHrefAndDestination, getImageSizeAttributes } from './utils';
+import { getUpdatedLinkTargetSettings } from '../image/utils';
 import Gallery from './gallery';
 import {
 	LINK_DESTINATION_ATTACHMENT,
@@ -112,20 +112,41 @@ function GalleryEdit( props ) {
 		'core/block-editor'
 	);
 
+	/**
+	 * Determines the image attributes that should be applied to an image block
+	 * after the gallery updates.
+	 *
+	 * The gallery will receive the full collection of images when a new image
+	 * is added. As a result we need to reapply the image's original settings if
+	 * it already existed in the gallery. If the image is in fact new, we need
+	 * to apply the gallery's current settings to the image.
+	 *
+	 * @param  {Object} existingBlock Existing Image block that still exists after gallery update.
+	 * @param  {Object} image         Media object for the actual image.
+	 * @return {Object}               Attributes to set on the new image block.
+	 */
+	function buildImageAttributes( existingBlock, image ) {
+		if ( existingBlock ) {
+			return existingBlock.attributes;
+		}
+
+		return {
+			...pickRelevantMediaFiles( image, sizeSlug ),
+			...getHrefAndDestination( image, linkTo ),
+			...getUpdatedLinkTargetSettings( linkTarget, attributes ),
+			sizeSlug,
+		};
+	}
+
 	function onSelectImages( newImages ) {
 		const newBlocks = newImages.map( ( image ) => {
 			const existingBlock = find(
 				images,
 				( img ) => img.id === image.id
 			);
-			const newImageAttribs = existingBlock
-				? existingBlock.attributes
-				: {
-						...pickRelevantMediaFiles( image, sizeSlug ),
-						linkDestination: linkTo,
-				  };
+
 			return createBlock( 'core/image', {
-				...newImageAttribs,
+				...buildImageAttributes( existingBlock, image ),
 				id: image.id,
 			} );
 		} );
@@ -166,21 +187,24 @@ function GalleryEdit( props ) {
 		setAttributes( { linkTarget: linkTarget ? undefined : '_blank' } );
 	}
 
-	function applyImageOptions( { forceUpdate } ) {
+	function applyImageOptions() {
 		getBlock( clientId ).innerBlocks.forEach( ( block ) => {
 			const image = block.attributes.id
 				? find( images, { id: block.attributes.id } )
 				: null;
-			const newAttributes = getNewImageAttributes(
-				attributes,
-				block.attributes,
-				image.imageData,
-				forceUpdate
-			);
-			updateBlockAttributes( block.clientId, newAttributes );
+
+			updateBlockAttributes( block.clientId, {
+				...getHrefAndDestination( image.imageData, linkTo ),
+				...getUpdatedLinkTargetSettings( linkTarget, block.attributes ),
+				...getImageSizeAttributes( image.imageData, sizeSlug ),
+			} );
 		} );
 		setDirtyImageOptions( false );
 		setImageSettings( currentImageOptions );
+	}
+
+	function cancelImageOptions() {
+		setAttributes( imageSettings );
 	}
 
 	function updateImagesSize( newSizeSlug ) {
@@ -298,24 +322,18 @@ function GalleryEdit( props ) {
 						/>
 					) }
 					{ dirtyImageOptions && (
-						<ButtonGroup>
-							<Button
-								isSmall
-								onClick={ () =>
-									applyImageOptions( { forceUpdate: true } )
-								}
-							>
+						<div className={ 'gallery-settings-buttons' }>
+							<Button isPrimary onClick={ applyImageOptions }>
 								{ __( 'Apply to all images' ) }
 							</Button>
 							<Button
-								isSmall
-								onClick={ () =>
-									applyImageOptions( { forceUpdate: false } )
-								}
+								className={ 'cancel-apply-to-images' }
+								isLink
+								onClick={ cancelImageOptions }
 							>
-								{ __( 'Apply only as fallback' ) }
+								{ __( 'Cancel' ) }
 							</Button>
-						</ButtonGroup>
+						</div>
 					) }
 				</PanelBody>
 			</InspectorControls>
