@@ -11,20 +11,13 @@ import { RichText, InnerBlocks } from '@wordpress/block-editor';
 /**
  * Internal dependencies
  */
-// import { defaultColumnsNumber } from './shared';
+import { defaultColumnsNumber } from './shared';
 
-// Need to add work out best way to pass this to child images.
-// import {
-// 	LINK_DESTINATION_ATTACHMENT,
-// 	LINK_DESTINATION_MEDIA,
-// } from './constants';
-
-export default function save( { attributes } ) {
+export default function save( { attributes, innerBlocks } ) {
 	const {
-		columns = 3, // defaultColumnsNumber( attributes ) - TODO: get this somehow from Edit state?
+		columns = defaultColumnsNumber( innerBlocks ),
 		imageCrop,
 		caption,
-		// linkTo, // Needs to be passed down to children.
 	} = attributes;
 
 	return (
